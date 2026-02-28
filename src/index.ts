@@ -1,44 +1,31 @@
-import { createServer, IncomingMessage, ServerResponse } from "http";
-import { readFile } from "fs/promises";
+import express, { Request, Response } from "express";
+import env from "dotenv";
 import { join } from "path";
 
-const hostname = "127.0.0.1";
-const port = 3000;
+env.config();
 
-const server = createServer(
-  async (req: IncomingMessage, res: ServerResponse) => {
-    let filePath: string;
+const app = express();
+const PORT = Number(process.env.PORT) || 3000;
+const PAGES_DIR = join(process.cwd(), "src/pages");
 
-    switch (req.url) {
-      case "/":
-        filePath = join(process.cwd(), "src/pages", "index.html");
-        break;
-      case "/about":
-        filePath = join(process.cwd(), "src/pages", "about.html");
-        break;
-      case "/contact-me":
-        filePath = join(process.cwd(), "src/pages", "contact-me.html");
-        break;
-      default:
-        filePath = join(process.cwd(), "src/pages", "404.html");
-        res.statusCode = 404;
-        break;
+const sendPage = (page: string, res: Response) => {
+  res.sendFile(page, { root: PAGES_DIR }, (err) => {
+    if (err) {
+      res.status(500).send("Internal Server Error");
+      console.error(err);
     }
+  });
+};
 
-    try {
-      const data = await readFile(filePath, "utf-8");
-      if (res.statusCode !== 404) res.statusCode = 200;
-      res.setHeader("Content-Type", "text/html");
-      res.end(data);
-    } catch (error) {
-      res.statusCode = 500;
-      res.setHeader("Content-Type", "text/plain");
-      res.end("Internal Server Error");
-      console.log(error);
-    }
-  },
+app.get("/", (req: Request, res: Response) => sendPage("index.html", res));
+app.get("/about", (req: Request, res: Response) => sendPage("about.html", res));
+app.get("/contact-me", (req: Request, res: Response) =>
+  sendPage("contact-me.html", res),
 );
 
-server.listen(port, hostname, () => {
-  console.log(`Server running at http://${hostname}:${port}`);
+app.use((req: Request, res: Response) => {
+  res.status(404);
+  sendPage("404.html", res);
 });
+
+app.listen(PORT, () => console.log(`Listening on port: ${PORT}`));
